@@ -87,6 +87,32 @@ framelock snapshot data/clips      # -> a new version id
 framelock diff c29aa729c669 <new>  # added / removed / modified / MOVED
 ```
 
+### Datasets defined by path-list files (train.txt of absolute paths)
+
+Many teams don't train on "a directory" — they train on **txt manifests**: one
+absolute path per line (500k clips, several lists concatenated per experiment).
+framelock pins that whole construct — the list files *and* the bytes they
+point at:
+
+```bash
+framelock snapshot --from-list train_urban.txt train_highway.txt
+# -> one version id covering: both txt files + every referenced clip
+#    re-encode one clip, or edit one line  -> different version id
+#    a listed path that no longer exists   -> "⚠ recorded as missing"
+```
+
+Repeated paths across lists are deduped. For 100k+ files, content hashes are
+cached (`.framelock/hashcache.json`) so later snapshots only re-read files
+whose size/mtime changed; `--fast` skips content reads entirely (size+mtime
+fingerprint) for routine checks — take a periodic full snapshot as your anchor
+of record.
+
+```python
+man = framelock.snapshot_from_lists(["train_urban.txt", "train_highway.txt"])
+with framelock.track(name="exp-8") as run:
+    run.use_dataset(man)               # pins the exact list+content version
+```
+
 Track experiments from Python:
 
 ```python

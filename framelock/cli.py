@@ -25,9 +25,25 @@ def cmd_init(args) -> int:
 
 def cmd_snapshot(args) -> int:
     repo = Repo.open_or_init(".")
-    man = snapshot(args.dataset, created_at=_now())
+    if args.from_list:
+        import os
+
+        from .listfile import HashCache, snapshot_from_lists
+
+        cache = HashCache(os.path.join(repo.store, "hashcache.json"))
+        man = snapshot_from_lists(
+            args.from_list, created_at=_now(), cache=cache, fast=args.fast
+        )
+    elif args.dataset:
+        man = snapshot(args.dataset, created_at=_now())
+    else:
+        print("framelock: error: give a dataset directory or --from-list", file=sys.stderr)
+        return 2
     repo.save_manifest(man)
+    missing = sum(1 for f in man.files if f.hash == "missing:")
     print(f"snapshot {man.short}  ({man.file_count} files, {man.total_bytes} bytes)")
+    if missing:
+        print(f"  ⚠ {missing} referenced path(s) do not exist (recorded as missing)")
     if args.verbose:
         print(f"  root: {man.root}")
         for f in man.files:
@@ -138,8 +154,23 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("path", nargs="?", default=".")
     sp.set_defaults(func=cmd_init)
 
-    sp = sub.add_parser("snapshot", help="version a dataset directory by content")
-    sp.add_argument("dataset")
+    sp = sub.add_parser(
+        "snapshot", help="version a dataset directory (or path-list txt files) by content"
+    )
+    sp.add_argument("dataset", nargs="?", default=None)
+    sp.add_argument(
+        "--from-list",
+        nargs="+",
+        metavar="LIST_TXT",
+        help="dataset = these list files + every path they reference "
+        "(one path per line, # comments ok; multiple lists are deduped/unioned)",
+    )
+    sp.add_argument(
+        "--fast",
+        action="store_true",
+        help="fingerprint referenced files by size+mtime instead of content "
+        "(fast for 100k+ files; take periodic full snapshots as anchors)",
+    )
     sp.add_argument("-v", "--verbose", action="store_true")
     sp.set_defaults(func=cmd_snapshot)
 

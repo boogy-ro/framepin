@@ -6,6 +6,7 @@ version, and answer "was it the code or the data?" when a metric moves.
 """
 
 from .manifest import Manifest, snapshot
+from .listfile import snapshot_from_lists, HashCache
 from .diff import diff_manifests, DatasetDiff
 from .tracking import track, Run, compare_runs
 from .repo import Repo
@@ -13,6 +14,8 @@ from .repo import Repo
 __version__ = "0.1.0"
 
 __all__ = [
+    "snapshot_from_lists",
+    "HashCache",
     "Manifest",
     "snapshot",
     "diff_manifests",
