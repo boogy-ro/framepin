@@ -142,7 +142,7 @@ Everything lives under `.framelock/` as plain, sorted JSON. Commit it.
 ## Install from source
 
 ```bash
-git clone https://github.com/OWNER/framelock
+git clone https://github.com/wooseokRo/framelock
 cd framelock
 pip install -e .          # or just add the repo to PYTHONPATH — no deps
 python -m unittest discover -s tests
