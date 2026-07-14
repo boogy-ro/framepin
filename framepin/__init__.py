@@ -11,7 +11,7 @@ from .diff import diff_manifests, DatasetDiff
 from .tracking import track, Run, compare_runs
 from .repo import Repo
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     "snapshot_from_lists",

@@ -21,7 +21,11 @@ Core commands:
 - `framepin snapshot DIR` — content-hash a dataset directory into an immutable version id (Merkle root; no copies)
 - `framepin snapshot --from-list a.txt b.txt [--fast]` — version datasets defined as path-list txt files: pins the lists AND every referenced file; `--fast` fingerprints by size+mtime for 100k+ files
 - `framepin diff OLD NEW` — added / removed / modified / MOVED (a folder reorg of identical files shows as moves, not churn)
+- `framepin verify DIR --against VERSION` — CI gate: exit 0 if the dataset still matches the pinned version, exit 3 with a drift summary otherwise (also works with --from-list)
+- `framepin log [--json]` — list stored dataset versions, newest first
+- `framepin gc [--apply --keep N]` — prune versions no run references (dry-run by default)
 - `framepin regress RUN_A RUN_B -m METRIC` — metric delta + "DATA CHANGED" or "same dataset version" verdict
+- `--jobs N` on snapshot/verify hashes files concurrently (large datasets); `--json` on snapshot/verify/log gives machine-readable output for agents and CI
 - Python API: `with framepin.track(name=..., params=...) as run: run.use_dataset("data/clips"); run.log_metric(...)`
 
 What framepin is NOT: an experiment dashboard (use W&B/MLflow alongside) or a

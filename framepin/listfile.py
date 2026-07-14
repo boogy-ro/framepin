@@ -109,11 +109,14 @@ def snapshot_from_lists(
     created_at: str = "",
     cache: HashCache | None = None,
     fast: bool = False,
+    jobs: int = hashing.DEFAULT_JOBS,
 ) -> Manifest:
     """Build a Manifest for "dataset = these list files + what they reference".
 
     The version id is a pure function of the list files' content plus each
-    referenced file's (path, hash/fingerprint) — same construct, same id.
+    referenced file's (path, hash/fingerprint) — same construct, same id
+    regardless of ``jobs``. Only cache-missing files are content-read; those
+    are hashed concurrently (hashing.hash_files).
     """
     list_paths = [os.path.abspath(p) for p in list_paths]
     if not list_paths:
@@ -134,10 +137,36 @@ def snapshot_from_lists(
                 seen.add(ref)
                 referenced.append(ref)
 
+    # stat in the main thread; farm out only the actual content hashing
+    to_hash: list = []
+    stats = {}
     for ref in referenced:
-        e = _entry_for(ref, algo, cache, fast=fast)
-        entries.append(e)
-        total += e.size
+        try:
+            st = os.stat(ref)
+        except OSError:
+            entries.append(FileEntry(path=ref, hash="missing:", size=0))
+            continue
+        stats[ref] = st
+        if fast:
+            entries.append(FileEntry(
+                path=ref, hash=f"stat:{st.st_size}:{st.st_mtime_ns}", size=st.st_size))
+            total += st.st_size
+            continue
+        hit = cache.get(ref, st.st_size, st.st_mtime_ns, algo) if cache else None
+        if hit is not None:
+            entries.append(FileEntry(path=ref, hash=hit, size=st.st_size))
+            total += st.st_size
+        else:
+            to_hash.append(ref)
+
+    if to_hash:
+        digests = hashing.hash_files(to_hash, algo=algo, jobs=jobs)
+        for ref in to_hash:
+            st = stats[ref]
+            entries.append(FileEntry(path=ref, hash=digests[ref], size=st.st_size))
+            total += st.st_size
+            if cache is not None:
+                cache.put(ref, st.st_size, st.st_mtime_ns, algo, digests[ref])
 
     if cache is not None:
         cache.save()

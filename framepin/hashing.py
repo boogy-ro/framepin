@@ -34,6 +34,37 @@ def hash_bytes(data: bytes, algo: str = DEFAULT_ALGO) -> str:
     return hashlib.new(algo, data).hexdigest()
 
 
+DEFAULT_JOBS = 4
+PROGRESS_EVERY = 5000
+
+
+def hash_files(paths, algo: str = DEFAULT_ALGO, jobs: int = DEFAULT_JOBS) -> dict:
+    """Hash many files concurrently; returns {path: digest}.
+
+    Threads work here because both file reads and hashlib release the GIL, so
+    large-dataset snapshots become storage-bound instead of single-core-bound.
+    Progress goes to stderr (never stdout — keeps pipes/`--json` clean); the
+    result is a plain dict so ordering never affects the merkle root.
+    """
+    import sys
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    paths = list(paths)
+    out = {}
+    if not paths:
+        return out
+    with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        futures = {pool.submit(hash_file, p, algo): p for p in paths}
+        done = 0
+        for fut in as_completed(futures):
+            out[futures[fut]] = fut.result()
+            done += 1
+            if done % PROGRESS_EVERY == 0:
+                print(f"framepin: hashed {done}/{len(paths)} files...",
+                      file=sys.stderr, flush=True)
+    return out
+
+
 def merkle_root(entries, algo: str = DEFAULT_ALGO) -> str:
     """Compute a deterministic root digest over ``(relpath, filehash)`` entries.
 

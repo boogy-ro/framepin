@@ -91,22 +91,25 @@ def snapshot(
     algo: str = hashing.DEFAULT_ALGO,
     ignore: Iterable[str] = DEFAULT_IGNORE,
     created_at: str = "",
+    jobs: int = hashing.DEFAULT_JOBS,
 ) -> Manifest:
     """Build a :class:`Manifest` for ``dataset_path`` without copying data.
 
     The ``root`` digest is a pure function of the file set (paths + content
-    hashes) and is independent of walk order or ``created_at``, so snapshotting
-    the same bytes twice yields the same version id.
+    hashes) and is independent of walk order, ``created_at`` and ``jobs``, so
+    snapshotting the same bytes twice yields the same version id.
     """
     if not os.path.isdir(dataset_path):
         raise NotADirectoryError(f"not a directory: {dataset_path}")
 
+    files = list(_iter_files(dataset_path, ignore))
+    digests = hashing.hash_files((a for a, _ in files), algo=algo, jobs=jobs)
+
     entries: list = []
     total = 0
-    for abspath, rel in _iter_files(dataset_path, ignore):
-        fh = hashing.hash_file(abspath, algo=algo)
+    for abspath, rel in files:
         size = os.path.getsize(abspath)
-        entries.append(FileEntry(path=rel, hash=fh, size=size))
+        entries.append(FileEntry(path=rel, hash=digests[abspath], size=size))
         total += size
 
     entries.sort(key=lambda e: e.path)  # deterministic file ordering in the JSON

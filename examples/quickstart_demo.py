@@ -18,9 +18,14 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
 
-import framepin
+try:
+    import framepin
+except ModuleNotFoundError:  # running from a source checkout without install
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import framepin
 
 
 def _make_clip(path: str, content: bytes) -> None:

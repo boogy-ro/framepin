@@ -128,6 +128,10 @@ with framepin.track(name="exp-7", params={"lr": 3e-4, "aug": "mixup"}) as run:
     run.log_metric("map50", 0.63)
 ```
 
+**PyTorch**: nothing about your `Dataset`/`DataLoader` changes — see
+[examples/pytorch_integration.py](examples/pytorch_integration.py) for the
+3-line pattern in a real train loop.
+
 Inspect lineage and compare:
 
 ```bash
